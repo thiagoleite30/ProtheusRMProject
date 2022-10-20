@@ -1,7 +1,7 @@
 # %%
 import pandas as pd
 import os
-from datetime import date, timedelta
+from datetime import date
 import logging
 
 # Pega a data do dia e transforma em uma string com formato em ano, mês e dia unificado ex: 20221011
