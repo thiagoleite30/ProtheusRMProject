@@ -176,7 +176,7 @@ if not os.path.exists('ProtheusRM'):
     df_final.reset_index(drop=True, inplace=True)
     #df_final['DATA_DEMISSAO'] = pd.to_datetime(df_final['DATA_DEMISSAO'], errors='ignore', dayfirst=True)
     try:
-        df_final.to_csv('ProtheusRM/ProtheusRM_Final_' + DateTodayStr + '.csv')
+        df_final.to_csv('ProtheusRM/ProtheusRM_Final_' + DateTodayStr + '.csv', header=True, sep=';', encoding='UTF-8')
     except Exception as error:
         log.error(error)
     else:
@@ -186,7 +186,7 @@ else:
     df_final.reset_index(drop=True, inplace=True)
     #df_final['DATA_DEMISSAO'] = pd.to_datetime(df_final['DATA_DEMISSAO'], errors='ignore', dayfirst=True)
     try:
-        df_final.to_csv('ProtheusRM/ProtheusRM_Final_' + DateTodayStr + '.csv')
+        df_final.to_csv('ProtheusRM/ProtheusRM_Final_' + DateTodayStr + '.csv', header=True, sep=';', encoding='UTF-8')
     except Exception as error:
         log.error(error)
     else:
