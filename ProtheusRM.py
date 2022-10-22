@@ -47,6 +47,7 @@ for i in AllFilesPath:
 try:
     df_protheus['EMPRESA'] = 'Rio Quente'
     df_rm['EMPRESA'] = 'Sauipe'
+    df_rm.rename(columns={'Situacao_Data_Inicio': 'SITUACAO_DATA_INICIO_AFAST', 'Situacao_Data_Fim': 'SITUACAO_DATA_FIM_AFAST'})
 except Exception as error:
     log.error(error)
 
@@ -62,11 +63,11 @@ df_rm.drop_duplicates(subset='CPF', keep='last', inplace=True)
 # %%
 # Remove as colunas indesejadas dos dfs, mantendo somente as necessárias
 for i in df_protheus.columns:
-    if i != 'MATRICULA' and i != 'EMPRESA' and i != 'FILIAL' and i != 'CARGO' and i != 'NOME' and i != 'CPF' and i != 'EMAIL' and i != 'SITUACAO' and i != 'DATA_DEMISSAO' and i != 'DATA_ADMISSAO':
+    if i != 'MATRICULA' and i != 'SITUACAO_DATA_INICIO_AFAST' and i != 'SITUACAO_DATA_FIM_AFAST' and i != 'CENTRO_CUSTO' and i != 'EMPRESA' and i != 'FILIAL' and i != 'CARGO' and i != 'NOME' and i != 'CPF' and i != 'SITUACAO' and i != 'DATA_DEMISSAO' and i != 'DATA_ADMISSAO':
         # print(i)
         df_protheus.drop(i, axis=1, inplace=True)
 for i in df_rm.columns:
-    if i != 'MATRICULA' and i != 'EMPRESA' and i != 'FILIAL' and i != 'CARGO' and i != 'NOME' and i != 'CPF' and i != 'EMAIL' and i != 'SITUACAO' and i != 'DATA_DEMISSAO' and i != 'DATA_ADMISSAO':
+    if i != 'MATRICULA' and i != 'SITUACAO_DATA_INICIO_AFAST' and i != 'SITUACAO_DATA_FIM_AFAST' and i != 'CENTRO_CUSTO' and i != 'EMPRESA' and i != 'FILIAL' and i != 'CARGO' and i != 'NOME' and i != 'CPF' and i != 'SITUACAO' and i != 'DATA_DEMISSAO' and i != 'DATA_ADMISSAO':
         # print(i)
         df_rm.drop(i, axis=1, inplace=True)
 
@@ -124,35 +125,54 @@ try:
                             print('A data de demissao de {} = {} é maior que {} = {}'.format(i, df_auxiliar.loc[
                                 i, 'DATA_DEMISSAO'], i + 1, df_auxiliar.loc[i + 1, 'DATA_DEMISSAO']))
                             print('Inserindo {}'.format(df_auxiliar.loc[[i], :]))
-                            i += 2
+                            if i < len(df_auxiliar.index) - 1:
+                                i += 2
+                            elif i >= len(df_auxiliar.index):
+                                i += 1
                         else:
                             df_final = pd.concat([df_final, df_auxiliar.iloc[[i + 1], 0:]])
                             print('A data de demissao de {} = {} é maior que {} = {}'.format(i + 1, df_auxiliar.loc[
                                 i + 1, 'DATA_DEMISSAO'], i, df_auxiliar.loc[i, 'DATA_DEMISSAO']))
                             print('Inserindo {}'.format(df_auxiliar.loc[[i + 1], :]))
-                            i += 2
+                            if i < len(df_auxiliar.index) - 1:
+                                i += 2
+                            elif i >= len(df_auxiliar.index):
+                                i += 1
                     else:
                         if df_auxiliar.loc[i, 'DATA_DEMISSAO'] == 0:
                             df_final = pd.concat([df_final, df_auxiliar.iloc[[i + 1], 0:]])
                             print('Inserindo {}'.format(df_auxiliar.loc[[i + 1], :]))
-                            i += 2
+                            if i < len(df_auxiliar.index) - 1:
+                                i += 2
+                            elif i >= len(df_auxiliar.index):
+                                i += 1
                         else:
                             df_final = pd.concat([df_final, df_auxiliar.iloc[[i], 0:]])
                             print('Inserindo {}'.format(df_auxiliar.loc[[i], :]))
-                            i += 2
+                            if i < len(df_auxiliar.index) - 1:
+                                i += 2
+                            elif i >= len(df_auxiliar.index):
+                                i += 1
                 else:
                     print(f'\nSITUACAO DE {i} e {i + 1} NÃO são iguais')
                     if (df_auxiliar.loc[i, 'SITUACAO'] == 'Demitido') and (
                             df_auxiliar.loc[i + 1, 'SITUACAO'] != 'Demitido'):
                         df_final = pd.concat([df_final, df_auxiliar.iloc[[i + 1], 0:]])
                         print('Inserindo {}'.format(df_auxiliar.loc[[i + 1], :]))
-                        i += 2
-                        print(f'Almentando + 2 em i ficou {i}')
+                        if i < len(df_auxiliar.index) - 1:
+                            i += 2
+                            print(f'Almentando + 2 em i ficou {i}')
+                        elif i >= len(df_auxiliar.index):
+                            i += 1
+
                     else:
                         df_final = pd.concat([df_final, df_auxiliar.iloc[[i], 0:]])
                         print('Inserindo {}'.format(df_auxiliar.loc[[i], :]))
-                        i += 2
-                        print(f'Almentando + 2 em i ficou {i}')
+                        if i < len(df_auxiliar.index) - 1:
+                            i += 2
+                            print(f'Almentando + 2 em i ficou {i}')
+                        elif i >= len(df_auxiliar.index):
+                            i += 1
             else:
                 df_final = pd.concat([df_final, df_auxiliar.iloc[[i], 0:]])
                 print('Inser {}'.format(df_auxiliar.loc[[i], :]))
@@ -160,6 +180,9 @@ try:
         elif i == len(df_auxiliar.index) - 1:
             df_final = pd.concat([df_final, df_auxiliar.iloc[[i], 0:]])
             print('Inserindo {}'.format(df_auxiliar.loc[[i], :]))
+            break
+        elif i > len(df_auxiliar.index) - 1:
+            log.info(f'Index {i} esta fora do range do DataFrame! Finalizando laço...')
             break
 except Exception as error:
     log.error(error)
