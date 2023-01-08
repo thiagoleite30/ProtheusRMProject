@@ -1,11 +1,12 @@
 # %%
 import pandas as pd
+import numpy as np
 import os
 from datetime import date
 import logging
 
 # Pega a data do dia e transforma em uma string com formato em ano, mês e dia unificado ex: 20221011
-DateTodayStr = '{}{}{}'.format(date.today().year, date.today().month, date.today().day)
+DateTodayStr = '{}{:02}{:02}'.format(date.today().year, date.today().month, date.today().day)
 
 # Cria uma pasta para armezenar logs de execução diários
 # Definimos um formato de menssagem de log e criamos o log
@@ -32,162 +33,175 @@ for i in AllFilesPath:
             # Altera a forma de separação dos arquivos para , e a codificação para 'ISO-8859-1'
             if 'Protheus' in i:
                 df_protheus = pd.read_csv(i,
-                                          converters={'EMAIL': str.upper, 'NOME': str.upper}, sep=',',
+                                          converters={'EMAIL': str.upper, 'NOME': str.upper}, sep=';',
                                           encoding='ISO-8859-1')
                 log.debug(f'O DataFrame df_protheus recebeu o arquivo {i}')
 
             elif 'RM' in i:
-                df_rm = pd.read_csv(i, converters={'Email': str.upper, 'Nome': str.upper}, sep=',',
-                                    encoding='ISO-8859-1')
+                df_rm = pd.read_csv(i,
+                                          converters={'EMAIL': str.upper, 'NOME': str.upper}, sep=';',
+                                          encoding='ISO-8859-1')
                 log.debug(f'O DataFrame df_rm recebeu o arquivo {i}')
     except:
         log.error('Não foi possível localizar os arquivos do dia {}'.format(date.today()))
 
-# Cria uma nova coluna nos DATA FRAMES com a empresa correspondente
+# Trabalha ambos os DataFrame para obter um geral rotulado
 try:
+    #Removendo duplicidades de CPF em cada um dos DataFrames mantendo a ultima ocorrência
+    #- Desta forma, em caso de uma pessoa ter sido contratada mais de uma vez em cargos diferentes, mantem-se apenas a ultima ocorrência.
+
+    df_protheus.drop_duplicates(subset='CPF', keep='last', inplace=True)
+    df_rm.drop_duplicates(subset='CPF', keep='last', inplace=True)
+
+    # Converte em maiusculo os titulos de todas as colunas
+    df_protheus.columns = df_protheus.columns.str.upper()
+    df_rm.columns = df_rm.columns.str.upper()
+
+    #Removendo algumas colunas que não precisaremos utilizar
+    df_protheus.drop(['EMPRESA_CNPJ', 'SETOR', 'COD_CARGO', 'VINCULO', 'TELEFONE', 'CELULAR', 'EMAIL'], axis=1, inplace=True)
+    df_rm.drop(['EMPRESA_CNPJ', 'SETOR', 'VINCULO', 'TELEFONE', 'CELULAR', 'EMAIL'], axis=1, inplace=True)
+
+    #Criando coluna para diferenciar a Empresa
     df_protheus['EMPRESA'] = 'Rio Quente'
     df_rm['EMPRESA'] = 'Sauipe'
-    df_rm.rename(columns={'Situacao_Data_Inicio': 'SITUACAO_DATA_INICIO_AFAST', 'Situacao_Data_Fim': 'SITUACAO_DATA_FIM_AFAST'})
+
+    df_rm.rename(columns={'SITUACAO_DATA_INICIO' : 'SITUACAO_DATA_INICIO_AFAST', 'SITUACAO_DATA_FIM' : 'SITUACAO_DATA_FIM_AFAST'}, inplace=True)
+
+    #  No RM o valor de Situação 'Demitido' estava escrito como Demitidos, então igualamos ao Protheus como 'Demitido'
+    df_rm.loc[df_rm['SITUACAO'] == 'Demitidos', 'SITUACAO'] = 'Demitido'
+
+    # No DataFrame do Protheus haviam valores de datas apenas com '/  /' e '//' então convertemos em valores NaN
+    df_protheus['DATA_DEMISSAO'].replace(['/  /', '//'], np.nan, inplace=True)
+    df_protheus['DATA_ADMISSAO'].replace(['/  /', '//'], np.nan, inplace=True)
+    df_protheus['SITUACAO_DATA_INICIO_AFAST'].replace(['/  /', '//'], np.nan, inplace=True)
+    df_protheus['SITUACAO_DATA_FIM_AFAST'].replace(['/  /', '//'], np.nan, inplace=True)
+
 except Exception as error:
     log.error(error)
 
-# Converte em maiusculo os titulos de todas as colunas
-df_protheus.columns = df_protheus.columns.str.upper()
-df_rm.columns = df_rm.columns.str.upper()
-
-# %%
-# Remove duplicadas mantendo ultimas ocorrências em cada arquivo
-df_protheus.drop_duplicates(subset='CPF', keep='last', inplace=True)
-df_rm.drop_duplicates(subset='CPF', keep='last', inplace=True)
-
-# %%
-# Remove as colunas indesejadas dos dfs, mantendo somente as necessárias
-for i in df_protheus.columns:
-    if i != 'MATRICULA' and i != 'SITUACAO_DATA_INICIO_AFAST' and i != 'SITUACAO_DATA_FIM_AFAST' and i != 'CENTRO_CUSTO' and i != 'EMPRESA' and i != 'FILIAL' and i != 'CARGO' and i != 'NOME' and i != 'CPF' and i != 'SITUACAO' and i != 'DATA_DEMISSAO' and i != 'DATA_ADMISSAO':
-        # print(i)
-        df_protheus.drop(i, axis=1, inplace=True)
-for i in df_rm.columns:
-    if i != 'MATRICULA' and i != 'SITUACAO_DATA_INICIO_AFAST' and i != 'SITUACAO_DATA_FIM_AFAST' and i != 'CENTRO_CUSTO' and i != 'EMPRESA' and i != 'FILIAL' and i != 'CARGO' and i != 'NOME' and i != 'CPF' and i != 'SITUACAO' and i != 'DATA_DEMISSAO' and i != 'DATA_ADMISSAO':
-        # print(i)
-        df_rm.drop(i, axis=1, inplace=True)
-
-# %%
-# Concatenar os dois dataFrames
-df_auxiliar = pd.concat([df_protheus, df_rm])
-
-# Altera os valores descritos como Demitidos para Demitido, para padronizar
-df_auxiliar.loc[df_auxiliar['SITUACAO'] == 'Demitidos', 'SITUACAO'] = 'Demitido'
-
-# CPF vázios deixam de ter valor nan para string vázia
-df_auxiliar['CPF'] = df_auxiliar['CPF'].fillna('')
-
-# Datas com valor nan passam a ter valor igual a 0
-df_auxiliar['DATA_DEMISSAO'] = df_auxiliar['DATA_DEMISSAO'].fillna('')
-
-# Datas de demissão que recebem a string '/  /' recebem 0 também para padronizar como vazias (igual linha acima)
-df_auxiliar.loc[df_auxiliar['DATA_DEMISSAO'] == '/  /', 'DATA_DEMISSAO'] = ''
-
-# Ordena as linhas por valores de CPFs
-df_auxiliar.sort_values(by='CPF', inplace=True)
-
-# Redefine o index para ficarm em ordem de 0 a n
-# Desta forma as duplicatas entre empresas ficam em sequencia
-df_auxiliar.reset_index(inplace=True, drop=True)
-print(df_auxiliar.index)
-# df_auxiliar.sort_index()
-
-# %%
-# Cria um novo df somente com as informações de colunas iguas o df concatenado
-df_final = pd.DataFrame(columns=df_auxiliar.columns)
-print(df_final)
-
-# %%
-# Especifica que a coluna DATA_DEMISSAO é do tipo date
-df_auxiliar['DATA_DEMISSAO'] = pd.to_datetime(df_auxiliar['DATA_DEMISSAO'], errors='ignore', dayfirst=True)
-
-# %% Remove duplicadas mantendo somente as linhas com SITUACAO diferente de Demitido ou, quando SITUACAO igual para
-# ambas, manter apenas uma, dando preferência a ultima ocorrência considerando a data de demissao
-i = 0
-tamanho = len(df_auxiliar.index)
-# while i < len(df_auxiliar.index) - 1:
+# Lendo o arquivo de cargos rotulados e inserindo informações de matricula e cargo gestor:
 try:
-    while True:
-        print(f'Começando linha {i}')
-        if i < len(df_auxiliar.index) - 1:
-            if df_auxiliar.loc[i, 'CPF'] == df_auxiliar.loc[i + 1, 'CPF']:
-                print(f'\n{i} e {i + 1} são iguais')
-                if df_auxiliar.loc[i, 'SITUACAO'] == df_auxiliar.loc[i + 1, 'SITUACAO']:
-                    print(f'\nSITUACAO DE {i} e {i + 1} são iguais')
-                    if df_auxiliar.loc[i, 'DATA_DEMISSAO'] != '' and df_auxiliar.loc[i + 1, 'DATA_DEMISSAO'] != '':
-                        if pd.to_datetime(df_auxiliar.loc[i, 'DATA_DEMISSAO']) >= pd.to_datetime(
-                                df_auxiliar.loc[i + 1, 'DATA_DEMISSAO']):
-                            df_final = pd.concat([df_final, df_auxiliar.iloc[[i], 0:]])
-                            print('A data de demissao de {} = {} é maior que {} = {}'.format(i, df_auxiliar.loc[
-                                i, 'DATA_DEMISSAO'], i + 1, df_auxiliar.loc[i + 1, 'DATA_DEMISSAO']))
-                            print('Inserindo {}'.format(df_auxiliar.loc[[i], :]))
-                            if i < len(df_auxiliar.index) - 1:
-                                i += 2
-                            elif i >= len(df_auxiliar.index):
-                                i += 1
-                        else:
-                            df_final = pd.concat([df_final, df_auxiliar.iloc[[i + 1], 0:]])
-                            print('A data de demissao de {} = {} é maior que {} = {}'.format(i + 1, df_auxiliar.loc[
-                                i + 1, 'DATA_DEMISSAO'], i, df_auxiliar.loc[i, 'DATA_DEMISSAO']))
-                            print('Inserindo {}'.format(df_auxiliar.loc[[i + 1], :]))
-                            if i < len(df_auxiliar.index) - 1:
-                                i += 2
-                            elif i >= len(df_auxiliar.index):
-                                i += 1
-                    else:
-                        if df_auxiliar.loc[i, 'DATA_DEMISSAO'] == 0:
-                            df_final = pd.concat([df_final, df_auxiliar.iloc[[i + 1], 0:]])
-                            print('Inserindo {}'.format(df_auxiliar.loc[[i + 1], :]))
-                            if i < len(df_auxiliar.index) - 1:
-                                i += 2
-                            elif i >= len(df_auxiliar.index):
-                                i += 1
-                        else:
-                            df_final = pd.concat([df_final, df_auxiliar.iloc[[i], 0:]])
-                            print('Inserindo {}'.format(df_auxiliar.loc[[i], :]))
-                            if i < len(df_auxiliar.index) - 1:
-                                i += 2
-                            elif i >= len(df_auxiliar.index):
-                                i += 1
-                else:
-                    print(f'\nSITUACAO DE {i} e {i + 1} NÃO são iguais')
-                    if (df_auxiliar.loc[i, 'SITUACAO'] == 'Demitido') and (
-                            df_auxiliar.loc[i + 1, 'SITUACAO'] != 'Demitido'):
-                        df_final = pd.concat([df_final, df_auxiliar.iloc[[i + 1], 0:]])
-                        print('Inserindo {}'.format(df_auxiliar.loc[[i + 1], :]))
-                        if i < len(df_auxiliar.index) - 1:
-                            i += 2
-                            print(f'Almentando + 2 em i ficou {i}')
-                        elif i >= len(df_auxiliar.index):
-                            i += 1
+    df_protheus_rotulados = pd.read_excel('df_protheus_rotulados.xlsx', index_col=0)
 
-                    else:
-                        df_final = pd.concat([df_final, df_auxiliar.iloc[[i], 0:]])
-                        print('Inserindo {}'.format(df_auxiliar.loc[[i], :]))
-                        if i < len(df_auxiliar.index) - 1:
-                            i += 2
-                            print(f'Almentando + 2 em i ficou {i}')
-                        elif i >= len(df_auxiliar.index):
-                            i += 1
-            else:
-                df_final = pd.concat([df_final, df_auxiliar.iloc[[i], 0:]])
-                print('Inser {}'.format(df_auxiliar.loc[[i], :]))
-                i += 1
-        elif i == len(df_auxiliar.index) - 1:
-            df_final = pd.concat([df_final, df_auxiliar.iloc[[i], 0:]])
-            print('Inserindo {}'.format(df_auxiliar.loc[[i], :]))
-            break
-        elif i > len(df_auxiliar.index) - 1:
-            log.info(f'Index {i} esta fora do range do DataFrame! Finalizando laço...')
-            break
+    # Inserindo colunas com informações de matricula e cargo no gestor no arquivo rotulado
+    for idx, row in df_protheus_rotulados.iterrows():
+        if row['GESTOR'] in df_protheus['NOME'].values:
+            # print(idx,row['GESTOR'])
+            df_protheus_rotulados.loc[idx, 'MATRICULA_GESTOR'] = \
+                df_protheus[df_protheus['NOME'] == row['GESTOR']]['MATRICULA'].values[0]
+            df_protheus_rotulados.loc[idx, 'CARGO_GESTOR'] = \
+                df_protheus[df_protheus['NOME'] == row['GESTOR']]['CARGO'].values[0]
+
+    # Salvando arquivo
+
+    df_protheus_rotulados.to_excel('df_protheus_rotulados.xlsx', header=True)
 except Exception as error:
     log.error(error)
 else:
-    log.debug('Eliminadas as ocorrências antigas de associados duplicados em ambos os sites Rio Quente e Sauipe')
+    log.debug('Arquivo de cargos rotulados lido e novas informações de matricula e cargo do gesto inseridas. Arquivo salvo como df_protheus_rotulados.xlsx!')
+
+print(df_protheus_rotulados)
+# ROTULANDO O ARQUIVO PROTHEUS
+try:
+    df_protheus.reset_index(drop=True, inplace=True)
+
+    #Cria uma coluna temporária para comparar cargos com maior precisão. Evita problemas com cargo de mesmo nome e CCs diferentes
+    df_protheus['CC_CARGO'] = df_protheus['CENTRO_CUSTO'] + '-' + df_protheus['CARGO']
+    df_protheus_rotulados['CC_CARGO'] = df_protheus_rotulados['CENTRO_CUSTO'] + '-' + df_protheus_rotulados['CARGO']
+
+    #FOR ITERROWS: AQUI SÃO CLASSIFICADOS OS CARGOS NO PROTHEUS RESULTANTE
+    print('Iniciando o iterrows')
+    print(f'Tamanho do df_protheus {len(df_protheus)}')
+    try:
+        df_protheus['GESTOR'] = np.nan
+        for idx, row in df_protheus.iterrows():
+            if row['CC_CARGO'] in df_protheus_rotulados['CC_CARGO'].to_list():
+                # df_protheus_rotulados['CC_CARGO'].to_list().index(row['CC_CARGO'])
+                #print(df_protheus.loc[idx, 'NOME'])
+                #print(idx, df_protheus_rotulados.loc[df_protheus_rotulados['CC_CARGO'].to_list().index(row['CC_CARGO']), 'GESTOR'])
+                indice = df_protheus_rotulados['CC_CARGO'].to_list().index(row['CC_CARGO'])
+                df_protheus.loc[idx, 'GESTOR'] = df_protheus_rotulados.loc[indice, 'GESTOR']
+            #else:
+                #print(idx, np.nan)
+
+        #INSERINDO INFORMAÇÕES DE MATRICULA E CARGO DO GESTOR NO DATAFRAME DO PROTHEUS
+        for idx, row in df_protheus.iterrows():
+            if row['GESTOR'] in df_protheus['NOME'].values:
+                # print(idx,row['GESTOR'])
+                df_protheus.loc[idx, 'MATRICULA_GESTOR'] = \
+                df_protheus[df_protheus['NOME'] == row['GESTOR']]['MATRICULA'].values[0]
+                df_protheus.loc[idx, 'CARGO_GESTOR'] = df_protheus[df_protheus['NOME'] == row['GESTOR']]['CARGO'].values[0]
+    except Exception as error:
+        log.error(error)
+    else:
+        print(f'Tamanho do df_protheus {len(df_protheus)}')
+
+except Exception as error:
+    log.error(error)
+else:
+    log.debug('DataFrame df_protheus rotulado com sucesso!')
+
+# %%
+# Concatenar os dois dataFrames
+try:
+    print(df_protheus.columns)
+    df_ProtheusRM = pd.concat([df_protheus, df_rm], axis=0)
+
+    #Mudando ordem das colunas para ficar melhor de visualizar
+    ordemCols = ['EMPRESA', 'FILIAL', 'MATRICULA', 'NOME', 'CPF', 'DATA_ADMISSAO', 'CENTRO_CUSTO', 'CARGO',
+                 'SITUACAO', 'SITUACAO_DATA_INICIO_AFAST', 'SITUACAO_DATA_FIM_AFAST',
+                 'DATA_DEMISSAO', 'GESTOR', 'MATRICULA_GESTOR', 'CARGO_GESTOR']
+    df_ProtheusRM = df_ProtheusRM[ordemCols]
+
+    #Mudando o tipo de colunas para DateTime para as colunas que carregam informações de Datas
+    df_ProtheusRM['SITUACAO_DATA_INICIO_AFAST'] = pd.to_datetime(df_ProtheusRM['SITUACAO_DATA_INICIO_AFAST'],
+                                                                dayfirst=True).apply(lambda x: x.replace(tzinfo=None))
+    df_ProtheusRM['SITUACAO_DATA_FIM_AFAST'] = pd.to_datetime(df_ProtheusRM['SITUACAO_DATA_FIM_AFAST'],
+                                                             dayfirst=True).apply(lambda x: x.replace(tzinfo=None))
+    df_ProtheusRM['DATA_ADMISSAO'] = pd.to_datetime(df_ProtheusRM['DATA_ADMISSAO'], dayfirst=True).apply(
+        lambda x: x.replace(tzinfo=None))
+    df_ProtheusRM['DATA_DEMISSAO'] = pd.to_datetime(df_ProtheusRM['DATA_DEMISSAO'], dayfirst=True).apply(
+        lambda x: x.replace(tzinfo=None))
+
+    # Ordenando por CPF para que os duplicados entre sites fiquem um sobre o outro
+    df_ProtheusRM.sort_values(by='CPF', inplace=True)
+
+    # Resetando o index do DataFrame maior para trabalhar no for iterrow
+    df_ProtheusRM.reset_index(drop=True, inplace=True)
+
+    ### Removendo CPFs não informados
+    df_ProtheusRM.dropna(subset=['CPF'], inplace=True)
+
+    # Obtendo um filtro com os duplicados
+    # Precisa manter o keep='last' para que a primeira ocorrência de duplicadas
+    filtro = df_ProtheusRM.duplicated(subset='CPF', keep='last')
+
+    for idx, row in filtro.iteritems():
+        if row:
+            print(idx, row)
+except Exception as error:
+    log.error(error)
+else:
+    log.debug('DataFrames df_protheus e df_rm concatenados com sucesso!')
+
+#Após obtenção do filtro
+#- Primeiro verificamos as ocorrências de datas vázias (com valor NaT) e as mantemos, pois assumem que são associados 'Ativos' (podendo ser 'Férias', 'Afastados' e etc).
+#- Em seguida onde o associada constam com data de demissão existente para ambas as duplicadas, optamos por manter o último periodo observado.
+try:
+    for idx, row in filtro.iteritems():
+        if row:
+            if isinstance(df_ProtheusRM.loc[idx, 'DATA_DEMISSAO'], pd._libs.tslibs.nattype.NaTType):
+                df_ProtheusRM.drop(idx + 1, inplace=True)
+            elif isinstance(df_ProtheusRM.loc[idx + 1, 'DATA_DEMISSAO'], pd._libs.tslibs.nattype.NaTType):
+                df_ProtheusRM.drop(idx, inplace=True)
+            elif df_ProtheusRM.loc[idx, 'DATA_DEMISSAO'] >= df_ProtheusRM.loc[idx + 1, 'DATA_DEMISSAO']:
+                df_ProtheusRM.drop(idx + 1, inplace=True)
+            elif df_ProtheusRM.loc[idx, 'DATA_DEMISSAO'] < df_ProtheusRM.loc[idx + 1, 'DATA_DEMISSAO']:
+                df_ProtheusRM.drop(idx, inplace=True)
+except Exception as error:
+    log.error(error)
+else:
+    log.debug('Eliminadas as ocorrências antigas de associados duplicados em ambos os sites Rio Quente e Sauipe. Mantidos os Ativos (férias, afastamento e etc)!')
 
 # %%
 # Salvar em csv
@@ -195,21 +209,21 @@ else:
 # Se a pasta já existir apenas salvamos o arquivo nesta pasta
 if not os.path.exists('ProtheusRM'):
     os.makedirs('ProtheusRM')
-    df_final.sort_values(by='CPF', inplace=True)
-    df_final.reset_index(drop=True, inplace=True)
-    #df_final['DATA_DEMISSAO'] = pd.to_datetime(df_final['DATA_DEMISSAO'], errors='ignore', dayfirst=True)
+    df_ProtheusRM.sort_values(by='CPF', inplace=True)
+    df_ProtheusRM.reset_index(drop=True, inplace=True)
+    #df_ProtheusRM['DATA_DEMISSAO'] = pd.to_datetime(df_ProtheusRM['DATA_DEMISSAO'], errors='ignore', dayfirst=True)
     try:
-        df_final.to_csv('ProtheusRM/ProtheusRM_Final_' + DateTodayStr + '.csv', header=True, sep=';', encoding='UTF-8')
+        df_ProtheusRM.to_csv('ProtheusRM/ProtheusRM_Final_' + DateTodayStr + '.csv', header=True, sep=';', encoding='UTF-8')
     except Exception as error:
         log.error(error)
     else:
         log.debug('O arquivo resultante ProtheusRM_Final_' + DateTodayStr + '.csv foi criado com êxito')
 else:
-    df_final.sort_values(by='CPF', inplace=True)
-    df_final.reset_index(drop=True, inplace=True)
-    #df_final['DATA_DEMISSAO'] = pd.to_datetime(df_final['DATA_DEMISSAO'], errors='ignore', dayfirst=True)
+    df_ProtheusRM.sort_values(by='CPF', inplace=True)
+    df_ProtheusRM.reset_index(drop=True, inplace=True)
+    #df_ProtheusRM['DATA_DEMISSAO'] = pd.to_datetime(df_ProtheusRM['DATA_DEMISSAO'], errors='ignore', dayfirst=True)
     try:
-        df_final.to_csv('ProtheusRM/ProtheusRM_Final_' + DateTodayStr + '.csv', header=True, sep=';', encoding='UTF-8')
+        df_ProtheusRM.to_csv('ProtheusRM/ProtheusRM_Final_' + DateTodayStr + '.csv', header=True, sep=';', encoding='UTF-8')
     except Exception as error:
         log.error(error)
     else:
