@@ -6,6 +6,7 @@ from datetime import date
 import logging
 
 # Pega a data do dia e transforma em uma string com formato em ano, mês e dia unificado ex: 20221011
+# Inserida logica de duas casas decimais no DateTodayStr
 DateTodayStr = '{}{:02}{:02}'.format(date.today().year, date.today().month, date.today().day)
 
 # Cria uma pasta para armezenar logs de execução diários
