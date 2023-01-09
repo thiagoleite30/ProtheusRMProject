@@ -1,0 +1,8 @@
+DEBUG 2023-01-09 18:38:44,318 - Listagem de arquivos do diretorio C:\Users\Thiago Leite\Documents\GitHub\ProtheusRMProject concluída com êxito
+DEBUG 2023-01-09 18:38:44,374 - O DataFrame df_protheus recebeu o arquivo Protheus_20230109_033022.csv
+DEBUG 2023-01-09 18:38:44,424 - O DataFrame df_rm recebeu o arquivo RM_20230109_033021.csv
+DEBUG 2023-01-09 18:38:48,565 - Arquivo de cargos rotulados lido e novas informações de matricula e cargo do gesto inseridas. Arquivo salvo como df_protheus_rotulados.xlsx!
+DEBUG 2023-01-09 18:39:01,261 - DataFrame df_protheus rotulado com sucesso!
+DEBUG 2023-01-09 18:39:01,485 - DataFrames df_protheus e df_rm concatenados com sucesso!
+DEBUG 2023-01-09 18:39:01,981 - Eliminadas as ocorrências antigas de associados duplicados em ambos os sites Rio Quente e Sauipe. Mantidos os Ativos (férias, afastamento e etc)!
+DEBUG 2023-01-09 18:39:02,063 - O arquivo resultante ProtheusRM_Final_20230109.csv foi criado com êxito

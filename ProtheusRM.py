@@ -210,6 +210,7 @@ else:
 # Se a pasta já existir apenas salvamos o arquivo nesta pasta
 if not os.path.exists('ProtheusRM'):
     os.makedirs('ProtheusRM')
+    df_ProtheusRM = df_ProtheusRM[df_ProtheusRM['SITUACAO'] != 'Demitido']
     df_ProtheusRM.sort_values(by='CPF', inplace=True)
     df_ProtheusRM.reset_index(drop=True, inplace=True)
     #df_ProtheusRM['DATA_DEMISSAO'] = pd.to_datetime(df_ProtheusRM['DATA_DEMISSAO'], errors='ignore', dayfirst=True)
@@ -220,6 +221,7 @@ if not os.path.exists('ProtheusRM'):
     else:
         log.debug('O arquivo resultante ProtheusRM_Final_' + DateTodayStr + '.csv foi criado com êxito')
 else:
+    df_ProtheusRM = df_ProtheusRM[df_ProtheusRM['SITUACAO'] != 'Demitido']
     df_ProtheusRM.sort_values(by='CPF', inplace=True)
     df_ProtheusRM.reset_index(drop=True, inplace=True)
     #df_ProtheusRM['DATA_DEMISSAO'] = pd.to_datetime(df_ProtheusRM['DATA_DEMISSAO'], errors='ignore', dayfirst=True)
